@@ -1,18 +1,20 @@
-
-/*
- *  This sketch demonstrates how to scan WiFi networks.
- *  The API is almost the same as with the WiFi Shield library,
- *  the most obvious difference being the different file you need to include:
- */
 #include "Arduino.h"
 #include "WiFi.h"
 #include "DHT.h"
 #include "password.h"
+#include "PubSubClient.h"
+#include "esp_deep_sleep.h"
 
-#define DHTPIN 0     // what digital pin the DHT22 is conected to
+#define DHTPIN  0       // what digital pin the DHT22 is conected to
 #define DHTTYPE DHT22   // there are multiple kinds of DHT sensors
 
 DHT dht(DHTPIN, DHTTYPE);
+WiFiClient espClient;
+PubSubClient client(espClient);
+// sensor/hum
+// sensor/tmp
+char tmp[11];
+char hum[11];
 
 void setup()
 {
@@ -34,26 +36,20 @@ void setup()
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
-
     Serial.println("Setup done");
+    client.setServer("bike.dragon-tortuga.net", 1883);
+    client.connect("widora1");
 }
 
-int timeSinceLastRead = 0;
 void loop() {
-    // Report every 2 seconds.
-  if(timeSinceLastRead > 3000) {
-    // Reading temperature or humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     float h = dht.readHumidity();
-    // Read temperature as Celsius (the default)
+    delay(300);
     float t = dht.readTemperature();
-    // Check if any reads failed and exit early (to try again).
     if (isnan(h) || isnan(t)) {
       Serial.println("Failed to read from DHT sensor!");
-     timeSinceLastRead = 0;
+      delay(2000);
       return;
     }
-
     Serial.print("Humidity: ");
     Serial.print(h);
     Serial.print(" %\t");
@@ -61,10 +57,13 @@ void loop() {
     Serial.print(t);
     Serial.print(" *C ");
     Serial.println();
-    timeSinceLastRead = 0;
-  }
-  delay(100);
-  timeSinceLastRead += 100;
-
+    Serial.println(WiFi.localIP());
+    String tmp = String(t);
+    String hum = String(h);
+    client.publish("sensor/hum", (char*) hum.c_str());
+    client.publish("sensor/tmp", (char*) tmp.c_str());
+    //client.disconnect();
+    esp_deep_sleep(1500000000);
+    //esp_deep_sleep(15000000);
     
 }
