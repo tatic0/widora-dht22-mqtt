@@ -3,7 +3,8 @@
 #include "DHT.h"
 #include "password.h"
 #include "PubSubClient.h"
-#include "esp_deep_sleep.h"
+//#include "esp_deep_sleep.h"
+#include "esp_sleep.h"
 
 #define DHTPIN  0       // what digital pin the DHT22 is conected to
 #define DHTTYPE DHT22   // there are multiple kinds of DHT sensors
@@ -11,8 +12,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-// sensor/hum
-// sensor/tmp
+
 char tmp[11];
 char hum[11];
 
@@ -21,6 +21,8 @@ void DHT_get_data() {
     delay(300);
     float t = dht.readTemperature();
     delay(300);
+		Serial.println(h*1.00);
+		Serial.println(t*1.00);
     if (isnan(h) || isnan(t)) {
       Serial.println("Failed to read from DHT sensor!");
       delay(300);
@@ -37,38 +39,50 @@ void DHT_get_data() {
     String tmp = String(t);
     String hum = String(h);
     if (!client.connected()){
+      client.setServer("192.168.1.7", 1883);
       client.connect("widora1");
-      delay(1000);
+			Serial.println("reconnecting...");
+			Serial.print(".");
+      //delay(1000);
       return;
     } else {
-      client.publish("sensor/hum", (char*) hum.c_str());
-      client.publish("sensor/tmp", (char*) tmp.c_str());
-      client.disconnect();
-      esp_deep_sleep(1500000000);
+    	client.setServer("192.168.1.7", 1883);
+    	client.connect("widora1");
+			Serial.println("connected, pushing data");
+      client.publish("sensor/hum1", (char*) hum.c_str());
+			Serial.println(hum.c_str());
+			client.disconnect();
+			delay(1000);
+    	client.setServer("192.168.1.7", 1883);
+    	client.connect("widora1");
+			Serial.println("connected, pushing data");
+      client.publish("sensor/tmp1", (char*) tmp.c_str());
+			Serial.println(tmp.c_str());
+			client.disconnect();
+			Serial.println("going to sleep");
       //esp_deep_sleep(15000000);
-    }
+      esp_deep_sleep(1800000000);
+   } 
 }
 
 
-void setup()
-{
+void setup() {
     Serial.begin(9600);
-    Serial.print(ssid);
+    Serial.println(ssid);
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
+		char WS = WiFi.status();
+    Serial.println(WS);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
-          delay(500);
-          Serial.print(".");
-      }   
+          delay(1000);
+          Serial.print(WS);
+    }   
     Serial.println("");
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
     Serial.println("Setup done");
-    client.setServer("bike.dragon-tortuga.net", 1883);
-    client.connect("widora1");
-    client.disconnect();
 }
 
 void loop() {
